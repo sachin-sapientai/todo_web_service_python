@@ -1,0 +1,317 @@
+{
+  "info": {
+    "name": "todo_web_service_python",
+    "description": "Sanity CRUD collection for the Django todo REST API. All requests are positive/happy-path scenarios. Import into Postman and set the `base_url` variable if needed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "todo_id",
+      "value": "1",
+      "type": "string",
+      "description": "Updated automatically by the 'Create Todo Item' request."
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Create Todo Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Response has id', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.id).to.be.a('number');",
+              "    pm.collectionVariables.set('todo_id', json.id);",
+              "});",
+              "pm.test('Location header is present', function () {",
+              "    pm.response.to.have.header('Location');",
+              "});",
+              "pm.test('name matches request', function () {",
+              "    pm.expect(pm.response.json().name).to.eql('Buy groceries');",
+              "});",
+              "pm.test('completed is false', function () {",
+              "    pm.expect(pm.response.json().completed).to.be.false;",
+              "});",
+              "pm.test('priority_label is High', function () {",
+              "    pm.expect(pm.response.json().priority_label).to.eql('High');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Buy groceries\",\n  \"completed\": false,\n  \"priority\": 3\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/todos",
+          "host": ["{{base_url}}"],
+          "path": ["todos"]
+        },
+        "description": "Creates a new todo item. Saves the returned `id` into the `todo_id` collection variable for use in subsequent requests."
+      }
+    },
+    {
+      "name": "2. List All Todo Items",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response is an array', function () {",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});",
+              "pm.test('Each item has required fields', function () {",
+              "    pm.response.json().forEach(function(item) {",
+              "        pm.expect(item).to.have.all.keys('id','name','completed','priority','priority_label','due_date','is_overdue','created_at','updated_at');",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/todos",
+          "host": ["{{base_url}}"],
+          "path": ["todos"]
+        },
+        "description": "Returns all todo items ordered by priority then created_at."
+      }
+    },
+    {
+      "name": "3. List Todo Items – Filter by completed=false",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('All items are incomplete', function () {",
+              "    pm.response.json().forEach(function(item) {",
+              "        pm.expect(item.completed).to.be.false;",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/todos?completed=false",
+          "host": ["{{base_url}}"],
+          "path": ["todos"],
+          "query": [
+            {
+              "key": "completed",
+              "value": "false"
+            }
+          ]
+        },
+        "description": "Returns only incomplete todo items."
+      }
+    },
+    {
+      "name": "4. List Todo Items – Filter by priority=3 (High)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('All items have High priority', function () {",
+              "    pm.response.json().forEach(function(item) {",
+              "        pm.expect(item.priority).to.eql(3);",
+              "        pm.expect(item.priority_label).to.eql('High');",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/todos?priority=3",
+          "host": ["{{base_url}}"],
+          "path": ["todos"],
+          "query": [
+            {
+              "key": "priority",
+              "value": "3"
+            }
+          ]
+        },
+        "description": "Returns only High priority (3) todo items."
+      }
+    },
+    {
+      "name": "5. Get Single Todo Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('id matches requested id', function () {",
+              "    var id = parseInt(pm.collectionVariables.get('todo_id'));",
+              "    pm.expect(pm.response.json().id).to.eql(id);",
+              "});",
+              "pm.test('Response has all fields', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.all.keys('id','name','completed','priority','priority_label','due_date','is_overdue','created_at','updated_at');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/todos/{{todo_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["todos", "{{todo_id}}"]
+        },
+        "description": "Retrieves the todo item created in step 1 using the saved `todo_id`."
+      }
+    },
+    {
+      "name": "6. Update Todo Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 204 No Content', function () {",
+              "    pm.response.to.have.status(204);",
+              "});",
+              "pm.test('Response body is empty', function () {",
+              "    pm.expect(pm.response.text()).to.be.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Buy groceries and cook dinner\",\n  \"completed\": true,\n  \"priority\": 2\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/todos/{{todo_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["todos", "{{todo_id}}"]
+        },
+        "description": "Updates the todo item created in step 1. Marks it completed and changes priority to Medium."
+      }
+    },
+    {
+      "name": "7. Verify Update – Get Updated Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('name was updated', function () {",
+              "    pm.expect(pm.response.json().name).to.eql('Buy groceries and cook dinner');",
+              "});",
+              "pm.test('completed is now true', function () {",
+              "    pm.expect(pm.response.json().completed).to.be.true;",
+              "});",
+              "pm.test('priority is now 2 (Medium)', function () {",
+              "    pm.expect(pm.response.json().priority).to.eql(2);",
+              "    pm.expect(pm.response.json().priority_label).to.eql('Medium');",
+              "});",
+              "pm.test('updated_at is set', function () {",
+              "    pm.expect(pm.response.json().updated_at).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/todos/{{todo_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["todos", "{{todo_id}}"]
+        },
+        "description": "Re-fetches the item after the PUT to confirm the update was persisted."
+      }
+    },
+    {
+      "name": "8. Delete Todo Item",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 204 No Content', function () {",
+              "    pm.response.to.have.status(204);",
+              "});",
+              "pm.test('Response body is empty', function () {",
+              "    pm.expect(pm.response.text()).to.be.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{base_url}}/todos/{{todo_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["todos", "{{todo_id}}"]
+        },
+        "description": "Deletes the todo item created in step 1."
+      }
+    }
+  ]
+}
