@@ -1,0 +1,14 @@
+{
+  "venvPath": ".",
+  "venv": "venv",
+  "pythonVersion": "3.13",
+  "djangoSettings": "todo_web_service_python.settings",
+  "include": [
+    "todos",
+    "todo_web_service_python"
+  ],
+  "exclude": [
+    "venv",
+    "**/__pycache__"
+  ]
+}
