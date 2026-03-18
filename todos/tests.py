@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 
 from .exceptions import TodoNotFoundError, TodoValidationError
 from .models import Priority, ToDoItem
+from .serializers import _parse_due_date
 from .services import (
     create_todo_item,
     delete_todo_item,
@@ -181,3 +182,105 @@ class TodoAPITest(TestCase):
     def test_delete_nonexistent_returns_404(self) -> None:
         response = self.client.delete(self._detail_url(99999))
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class DueDateParsingTest(TestCase):
+    """
+    Validates that due_date accepts both plain dates and ISO 8601
+    datetime strings, and rejects invalid formats.
+    """
+
+    def setUp(self) -> None:
+        self.client = APIClient()
+        self.list_url = reverse("todos_collection")
+        self.future = datetime.date.today() + datetime.timedelta(days=7)
+
+    def _detail_url(self, pk: int) -> str:
+        return reverse("todos_item", kwargs={"pk": pk})
+
+    # --- unit tests on _parse_due_date directly ---
+
+    def test_parse_plain_date_string(self) -> None:
+        result = _parse_due_date("2099-12-31")
+        self.assertEqual(result, datetime.date(2099, 12, 31))
+
+    def test_parse_iso8601_utc_string(self) -> None:
+        result = _parse_due_date("2099-06-15T12:00:00Z")
+        self.assertEqual(result, datetime.date(2099, 6, 15))
+
+    def test_parse_iso8601_no_tz_string(self) -> None:
+        result = _parse_due_date("2099-06-15T08:30:00")
+        self.assertEqual(result, datetime.date(2099, 6, 15))
+
+    def test_parse_date_object_passthrough(self) -> None:
+        d = datetime.date(2099, 1, 1)
+        self.assertEqual(_parse_due_date(d), d)
+
+    def test_parse_datetime_object_extracts_date(self) -> None:
+        dt = datetime.datetime(2099, 4, 20, 9, 0, 0)
+        self.assertEqual(_parse_due_date(dt), datetime.date(2099, 4, 20))
+
+    def test_parse_invalid_format_raises(self) -> None:
+        with self.assertRaises(Exception):
+            _parse_due_date("not-a-date")
+
+    # --- API integration tests ---
+
+    def test_create_with_plain_date(self) -> None:
+        response = self.client.post(
+            self.list_url,
+            {"name": "Plain date task", "priority": 2, "due_date": str(self.future)},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["due_date"], str(self.future))
+
+    def test_create_with_iso8601_utc_datetime(self) -> None:
+        future_dt = f"{self.future}T12:00:00Z"
+        response = self.client.post(
+            self.list_url,
+            {"name": "ISO datetime task", "priority": 1, "due_date": future_dt},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["due_date"], str(self.future))
+
+    def test_create_with_iso8601_no_tz(self) -> None:
+        future_dt = f"{self.future}T08:30:00"
+        response = self.client.post(
+            self.list_url,
+            {"name": "ISO no-tz task", "priority": 3, "due_date": future_dt},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["due_date"], str(self.future))
+
+    def test_create_with_null_due_date(self) -> None:
+        response = self.client.post(
+            self.list_url,
+            {"name": "No due date", "priority": 2, "due_date": None},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIsNone(response.data["due_date"])
+
+    def test_create_with_past_due_date_returns_400(self) -> None:
+        past = str(datetime.date.today() - datetime.timedelta(days=1))
+        response = self.client.post(
+            self.list_url,
+            {"name": "Past task", "priority": 2, "due_date": past},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_with_iso8601_utc_datetime(self) -> None:
+        item = ToDoItem.objects.create(name="Update me", priority=2)
+        future_dt = f"{self.future}T15:00:00Z"
+        response = self.client.put(
+            self._detail_url(item.pk),
+            {"name": "Updated", "completed": False, "priority": 2, "due_date": future_dt},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        item.refresh_from_db()
+        self.assertEqual(item.due_date, self.future)
