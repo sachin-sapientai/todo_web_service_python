@@ -264,14 +264,15 @@ class DueDateParsingTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIsNone(response.data["due_date"])
 
-    def test_create_with_past_due_date_returns_400(self) -> None:
+    def test_create_with_past_due_date_is_accepted(self) -> None:
         past = str(datetime.date.today() - datetime.timedelta(days=1))
         response = self.client.post(
             self.list_url,
             {"name": "Past task", "priority": 2, "due_date": past},
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["due_date"], past)
 
     def test_update_with_iso8601_utc_datetime(self) -> None:
         item = ToDoItem.objects.create(name="Update me", priority=2)

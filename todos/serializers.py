@@ -96,8 +96,4 @@ class ToDoItemSerializer(serializers.ModelSerializer):
         return value
 
     def validate_due_date(self, value: datetime.date | None) -> datetime.date | None:
-        if value is None:
-            return None
-        if value < datetime.date.today():
-            raise serializers.ValidationError("due_date cannot be in the past.")
         return value
